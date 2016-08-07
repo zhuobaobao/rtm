@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block content %}
+<div id="txtHint">
+    <div id="disks">
+        <div class="box">
+            <div class="box-header">
+                <span>Disks</span>
+            </div>
+            <div class="box-content">
+                <table id="processes" class="table table-condensed">
+                    <thead>
+                        <tr>
+                            <th>Device</th>
+                            <th>Mounted</th>
+                            <th>Type</th>
+                            <th>Options</th>
+                            <th>Space (total)</th>
+                            <th>Space (used)</th>
+                            <th>Space (free)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="disks_info">
+
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="box">
+            <div class="box-header">
+                <span>Disks I/O</span>
+            </div>
+            <div class="box-content">
+                <table id="processes" class="table">
+                    <thead>
+                        <tr>
+                            <th>Device</th>
+                            <th>Read count</th>
+                            <th>Write count</th>
+                            <th>Read bytes</th>
+                            <th>Write bytes</th>
+                            <th>Read time (ms)</th>
+                            <th>Write time (ms)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="disks_io_info">
+
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+<script type="text/javascript">
+    $(function() {
+        if ("WebSocket" in window) {
+            ws = new WebSocket("ws://" + document.domain + ":8008/socket_channel/?host={{host}}&action=disks&project={{ project }}");
+            ws.onopen = function () {
+                ws.send(JSON.stringify([{"method":"get_disks","args":{"all_partitions":"True"}},{"method":"get_disks_counters","args":{}}]));
+              };
+            ws.onmessage = function (msg) {
+                var message = JSON.parse(msg.data);
+                var connect_status = message.connect_status
+                var info = JSON.parse(message.output)
+
+                if (connect_status == "连接成功") {
+                    document.getElementById("connect_status").innerHTML = "<font color='green'>" + connect_status + "</font>"
+                } else {
+                    document.getElementById("connect_status").innerHTML = "<font color='red'>" + connect_status + "</font>"
+                }
+                get_disks = info.get_disks
+                get_disks_counters = info.get_disks_counters
+                var tr_all = ""
+                for(var i=0;i<get_disks.length;i++){
+                    device = "<td>"+get_disks[i]["device"]+"</td>"
+                    mountpoint = "<td>"+get_disks[i]["mountpoint"]+"</td>"
+                    type = "<td>"+get_disks[i]["type"]+"</td>"
+                    options = "<td>"+get_disks[i]["options"]+"</td>"
+                    space_used_percent = get_disks[i]["space_used_percent"]
+                    space_total = "<td>"+Math.floor(get_disks[i]["space_total"]/1000/1000/1000*10)/10+" GB</td>"
+                    space_used ="<td>"+ Math.floor(get_disks[i]["space_used"]/1000/1000/1000*10)/10+" GB (" +Math.floor(space_used_percent*10)/10 +" %)</td>"
+                    space_free = "<td>"+Math.floor(get_disks[i]["space_free"]/1000/1000/1000*10)/10+" GB</td>"
+
+                    tr_td = "<tr>"+device+mountpoint+type+options+space_total+space_used+space_free+"</td>"
+                    tr_all = tr_all + tr_td
+                }
+                document.getElementById("disks_info").innerHTML=tr_all;
+                var io_tr_all = ""
+                $.each(get_disks_counters,function(k,v){
+                    device = "<td>"+k+"</td>"
+                    read_count = "<td>"+v["read_count"]+"</td>"
+                    write_count = "<td>"+v["write_count"]+"</td>"
+                    read_bytes = "<td>"+v["read_bytes"]+"</td>"
+                    write_bytes = "<td>"+v["write_bytes"]+"</td>"
+                    read_time = "<td>" +v["read_time"]+"</td>"
+                    write_time = "<td>"+v["write_time"]+"</td>"
+                    tr_td = "<tr>"+device+read_count+write_count+read_bytes+write_bytes+read_time+write_time+"</tr>"
+                    io_tr_all = io_tr_all + tr_td
+
+                });
+                document.getElementById("disks_io_info").innerHTML=io_tr_all;
+            }
+        };
+
+        $('#chat_form input[name=text]').focus();
+
+        $("#chat_form").on('submit', function(e){
+            e.preventDefault();
+
+            var input = $('#chat_form input[name=text]');
+            var message = $(input).val();
+            $(input).val('');
+
+            ws.send(JSON.stringify({'output': message}));
+        });
+
+
+        window.onbeforeunload = function() {
+            ws.onclose = function () {};
+            ws.close()
+        };
+    });
+
+
+</script>
+{% endblock %}
