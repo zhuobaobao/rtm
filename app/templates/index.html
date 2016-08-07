@@ -1,0 +1,285 @@
+{% extends "base.html" %}
+{% block content %}
+    <div id="dashboard">
+        <div class="box cpu">
+            <div class="box-header">
+                <span>CPU</span>
+            </div>
+            <div class="box-content">
+                <table class="table">
+                    <tr>
+                        <td class="label-col">Load average</td>
+                        <td class="load" style="word-spacing: 10px;" id="load_avg">加载中...</td>
+                    </tr>
+                    <tr>
+                        <td class="label-col">User</td>
+                        <td class="user" id="get_cpu_user">加载中...</td>
+                    </tr>
+                    <tr>
+                        <td class="label-col">System</td>
+                        <td class="system" id="get_cpu_system">加载中...</td>
+                    </tr>
+                    <tr>
+                        <td class="label-col">Idle</td>
+                        <td class="idle" id="get_cpu_idle">加载中...</td>
+                    </tr>
+                    <tr>
+                        <td class="label-col">I/O wait</td>
+                        <td class="iowait" id="get_cpu_iowait">加载中...</td>
+                    </tr>
+                    <tr>
+                        <td class="label-col">Cores</td>
+                        <td class="num_cpus" id="get_sysinfo_num_cpus">加载中...</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        <div class="box memory">
+            <div class="box-header">
+                <span>内存</span>
+            </div>
+            <div class="box-content">
+                <table class="table">
+                    <tr>
+                        <td class="label-col">Total</td>
+                        <td class="total" id="get_memory_total">加载中...</td>
+                    </tr>
+                    <tr>
+                        <td class="label-col">Available</td>
+                        <td class="available" id="get_memory_available">加载中...</td>
+                    </tr>
+                    <tr>
+                        <td class="label-col">Used <small>(excl. cache &amp; buffers)</small></td>
+                        <td class="used_excl" id="get_memory_percent">加载中...</td>
+                    </tr>
+                    <tr>
+                        <td class="label-col">Used <small>(incl. cache &amp; buffers)</small></td>
+                        <td class="used_incl" id="get_memory_used">加载中...</td>
+                    </tr>
+                    <tr>
+                        <td class="label-col">Free</td>
+                        <td class="free" id="get_memory_free">加载中...</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        <div class="box network">
+            <div class="box-header">
+                <span>网络</span>
+            </div>
+            <div class="box-content">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Interface</th>
+                            <th>IP</th>
+                            <th>RX/s</th>
+                            <th>TX/s</th>
+                        </tr>
+                    </thead>
+                    <tbody id="get_interfaces">
+                        
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="box disks">
+            <div class="box-header">
+                <span>磁盘</span>
+            </div>
+            <div class="box-content">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>磁盘设备</th>
+                            <th>挂载点</th>
+                            <th>磁盘类型</th>
+                            <th>总大小</th>
+                            <th>使用大小</th>
+                            <th>空余大小</th>
+                             <th>使用率</th>
+                        </tr>
+                    </thead>
+                    <tbody id="get_disks">
+                        
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="box swap">
+            <div class="box-header">
+                <span>交换分区</span>
+            </div>
+            <div class="box-content">
+                <table class="table">
+                    <tr>
+                        <td class="label-col">Total</td>
+                        <td class="swap_total" id="get_swap_total">加载中...</td>
+                    </tr>
+                    <tr>
+                        <td class="label-col">Used</td>
+                        <td class="swap_used" id="get_swap_used">加载中...</td>
+                    </tr>
+                    <tr>
+                        <td class="label-col">Free</td>
+                        <td class="swap_free" id="get_swap_free">加载中...</td>
+                    </tr>
+                    <tr>
+                        <td class="label-col">Swapped in</td>
+                        <td class="swapped-in" id="get_swap_swapped_in">加载中...</td>
+                    </tr>
+                    <tr>
+                        <td class="label-col">Swapped out</td>
+                        <td class="swapped-out" id="get_swap_swapped_out">加载中...</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        <div class="box users">
+            <div class="box-header">
+                <span>用户</span>
+            </div>
+            <div class="box-content">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>终端类型1</th>
+                            <th>登录时间</th>
+                            <th>登陆源</th>
+                            <th>登陆用户</th>
+                        </tr>
+                    </thead>
+                    <tbody id="get_users">
+                        
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+
+
+<script type="text/javascript">
+    $(function() {
+        if ("WebSocket" in window) {
+            ws = new WebSocket("ws://" + document.domain + ":8008/socket_channel/?host={{host}}&action=dashboard");
+            ws.onopen = function () {
+                ws.send(JSON.stringify([{"method":"get_cpu","args":{}},{"method":"get_users","args":{}},{"method":"get_disks","args":{}},{"method":"get_network_interfaces","args":{}},{"method":"get_memory","args":{}},{"method":"get_swap_space","args":{}},{"method":"get_sysinfo","args":{}}]));
+              };
+            ws.onmessage = function (msg) {
+                var message = JSON.parse(msg.data);
+                var connect_status = message.connect_status
+                if (connect_status == "连接成功" ){
+                     document.getElementById("connect_status").innerHTML="<font color='green'>" + connect_status+"</font>"
+                }else{
+                    document.getElementById("connect_status").innerHTML="<font color='red'>" + connect_status+"</font>"
+                }
+
+
+                document.getElementById("load_avg").innerHTML=message.load_avg;
+                var info = JSON.parse(message.output)
+                var hostname = info.get_sysinfo.hostname
+                var os = info.get_sysinfo.os
+                console.log(os)
+                var get_cpu_user = info.get_cpu.user
+                var get_cpu_system = info.get_cpu.system
+                var get_cpu_idle = info.get_cpu.idle
+                var get_cpu_iowait = info.get_cpu.iowait
+                var get_sysinfo_num_cpus = info.get_sysinfo.num_cpus
+                var get_memory_total = info.get_memory.total
+                var get_memory_available = info.get_memory.available
+                var get_memory_used = info.get_memory.used
+                var get_memory_free = info.get_memory.free
+                var get_memory_cache = get_memory_total - get_memory_available
+                var get_memory_percent = info.get_memory.percent
+                var get_disks = info.get_disks
+                var get_swap_space = info.get_swap_space
+                var get_users = info.get_users
+
+                var get_network_interfaces = info.get_network_interfaces
+
+                document.getElementById("hostname").innerHTML="主机名:"+hostname;
+                document.getElementById("os").innerHTML="系统:"+os;
+                document.getElementById("get_cpu_user").innerHTML=get_cpu_user+"%";
+                document.getElementById("get_cpu_idle").innerHTML=get_cpu_idle+"%";
+                document.getElementById("get_cpu_iowait").innerHTML=get_cpu_iowait+"%";
+                document.getElementById("get_cpu_system").innerHTML=get_cpu_system+"%";
+                document.getElementById("get_sysinfo_num_cpus").innerHTML=get_sysinfo_num_cpus;
+                document.getElementById("get_memory_total").innerHTML=Math.floor(get_memory_total/1024/1024/1024 *100)/100 + " G";
+                document.getElementById("get_memory_available").innerHTML=Math.floor(get_memory_available/1024/1024/1024 *100)/100 + " G";
+                document.getElementById("get_memory_used").innerHTML=Math.floor(get_memory_used/1024/1024/1024 *100)/100 + " G";
+                document.getElementById("get_memory_free").innerHTML=Math.floor(get_memory_free/1024/1024 *100)/100 + " MB";
+                document.getElementById("get_memory_percent").innerHTML=Math.floor(get_memory_cache/1024/1024 *100)/100 + " MB (" +get_memory_percent +"%)";
+                document.getElementById("get_swap_total").innerHTML=Math.floor(get_swap_space["total"]/1024/1024 *100)/100 + " MB ";
+                document.getElementById("get_swap_used").innerHTML=Math.floor(get_swap_space["used"]/1024/1024 *100)/100 + " MB ";
+                document.getElementById("get_swap_free").innerHTML=Math.floor(get_swap_space["free"]/1024/1024 *100)/100 + " MB ";
+                document.getElementById("get_swap_swapped_in").innerHTML=Math.floor(get_swap_space["swapped_in"]/1024/1024 *100)/100 + " MB ";
+                document.getElementById("get_swap_swapped_out").innerHTML=Math.floor(get_swap_space["swapped_out"]/1024/1024 *100)/100 + " MB ";
+
+                var a = ""
+                $.each(get_network_interfaces, function (k, v){
+                    var interfaces = "<tr><td>" + k + "</td>"
+                    var ip = "<td>" + v["ip"] + "</td>"
+                    var recv_rate = "<td>" + Math.floor(v["recv_rate"]/1024/8 *100)/100 + " KB</td>"
+                    var send_rate = "<td>" + Math.floor(v["send_rate"]/1024/8 *100)/100 + " KB</td></tr>"
+                    a += interfaces + ip + recv_rate + send_rate
+                    
+                })
+                document.getElementById("get_interfaces").innerHTML=a;
+
+                var b = ""
+                for (var i=0;i<get_disks.length;i++){
+                    var device = "<tr><td>" +get_disks[i]["device"] +"</td>"
+                    var mounted = "<td>" +get_disks[i]["mountpoint"] + "</td>"
+                    var type = "<td>" + get_disks[i]["type"] + "</td>"
+                    var total = "<td>"+Math.round(get_disks[i]["space_total"]/1024/1024/1024) +"G</td>"
+                    var used = "<td>"+Math.round(get_disks[i]["space_used"]/1024/1024/1024) + "G</td>"
+                    var free = "<td>"+Math.round(get_disks[i]["space_free"]/1024/1024/1024) +"G</td>"
+                    var space_used_percent = "<td>"+get_disks[i]["space_used_percent"]+"%</td></tr>"
+                    b += device + mounted + type + total + used + free + space_used_percent
+                }
+                document.getElementById("get_disks").innerHTML=b;
+
+                var c =''
+                for (var i=0;i<get_users.length;i++){
+
+                    var terminal = "<tr><td>" + get_users[i]["terminal"] + "</td>"
+                    var host =  "<td>" + get_users[i]["host"] + "</td>"
+                    var name = "<td>" + get_users[i]["name"] + "</td></tr>"
+                    var start_time = formatDate(get_users[i]["started"])
+                    var started = "<td>" + start_time + "</td>"
+                    c += terminal + started + host + name
+                }
+                document.getElementById("get_users").innerHTML=c;
+            };
+        };
+
+        $('#chat_form input[name=text]').focus();
+
+        $("#chat_form").on('submit', function(e){
+            e.preventDefault();
+
+            var input = $('#chat_form input[name=text]');
+            var message = $(input).val();
+            $(input).val('');
+
+            ws.send(JSON.stringify({'output': message}));
+        });
+
+
+        window.onbeforeunload = function() {
+            ws.onclose = function () {};
+            ws.close()
+        };
+    });
+
+        function   formatDate(nS)   {
+              return new Date(parseInt(nS) * 1000).toLocaleString().replace(/年|月/g, "-").replace(/日/g, " ");
+              }
+
+
+</script>
+
+
+
+{% endblock %}

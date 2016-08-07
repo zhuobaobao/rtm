@@ -1,0 +1,90 @@
+{% extends "process.html" %}                                                                                                           
+{% block process_content %}                                                                                                            
+    <table class="table">                                                                                                              
+        <thead>                                                                                                                        
+            <tr>                                                                                                                       
+                <th>path</th>                                                                                                          
+                <th>rss</th>                                                                                                           
+                <th>size</th>                                                                                                          
+                <th>pss</th>                                                                                                           
+                <th>shared (clean)</th>                                                                                                
+                <th>shared (dirty)</th>                                                                                                
+                <th>private (clean)</th>                                                                                               
+                <th>private (dirty)</th>                                                                                               
+                <th>referenced</th>                                                                                                    
+                <th>anonymous</th>                                                                                                     
+                <th>swap</th>                                                                                                          
+            </tr>                                                                                                                      
+        </thead>                                                                                                                       
+        <tbody id="memory_id">
+
+        </tbody>                                                                                                                       
+    </table>
+
+    <script>
+     $(function() {
+        if ("WebSocket" in window) {
+            ws = new WebSocket("ws://" + document.domain + ":8008/socket_channel/?host={{host}}&action=process&section=memory");
+            ws.onopen = function () {
+                ws.send(JSON.stringify([{"method":"get_process_memory_maps","args":{"pid":{{pid}}}},{"method":"get_process","args":{"pid":{{pid}}}}]));
+              };
+            ws.onmessage = function (msg) {
+                var message = JSON.parse(msg.data);
+                var connect_status = message.connect_status
+                var info = JSON.parse(message.output)
+
+                if (connect_status == "连接成功") {
+                    document.getElementById("connect_status").innerHTML = "<font color='green'>" + connect_status + "</font>"
+                } else {
+                    document.getElementById("connect_status").innerHTML = "<font color='red'>" + connect_status + "</font>"
+                }
+                get_process_memory_maps = info.get_process_memory_maps
+                get_process = info.get_process
+                document.getElementById("process_name_pid").innerHTML=get_process.name+" ("+get_process.pid+")";
+                document.getElementById("process_num_files").innerHTML=get_process.num_files;
+                document.getElementById("process_num_threads").innerHTML=get_process.num_threads;
+                document.getElementById("process_num_children").innerHTML=get_process.num_children;
+                var all_tr = ""
+                for (var i =0;i<get_process_memory_maps.length;i++){
+                    path = get_process_memory_maps[i]["path"]
+                    rss = get_process_memory_maps[i]["rss"]
+                    size = get_process_memory_maps[i]["size"]
+                    pss = get_process_memory_maps[i]["pss"]
+                    shared_clean  = get_process_memory_maps[i]["shared_clean"]
+                    shared_dirty  = get_process_memory_maps[i]["shared_dirty"]
+                    private_clean  = get_process_memory_maps[i]["private_clean"]
+                    private_dirty  = get_process_memory_maps[i]["private_dirty"]
+                    referenced  = get_process_memory_maps[i]["referenced"]
+                    anonymous  = get_process_memory_maps[i]["anonymous"]
+                    swap  = get_process_memory_maps[i]["swap"]
+                    var tr_head = "<tr><td>"+path+"</td><td>" +rss+"</td><td>"+size+"</td><td>"+pss+"</td><td>"+shared_clean+"</td><td>"+shared_dirty+"</td><td>"+private_clean+"</td><td>"+private_dirty+"</td><td>"+referenced+"</td><td>"+anonymous+"</td><td>"+swap+"</td></tr>"
+                    all_tr = all_tr + tr_head
+                }
+
+                document.getElementById("memory_id").innerHTML=all_tr;
+
+            }
+        };
+
+        $('#chat_form input[name=text]').focus();
+
+        $("#chat_form").on('submit', function(e){
+            e.preventDefault();
+
+            var input = $('#chat_form input[name=text]');
+            var message = $(input).val();
+            $(input).val('');
+
+            ws.send(JSON.stringify({'output': message}));
+        });
+
+
+        window.onbeforeunload = function() {
+            ws.onclose = function () {};
+            ws.close()
+        };
+    });
+
+    </script>
+
+{% endblock %}     

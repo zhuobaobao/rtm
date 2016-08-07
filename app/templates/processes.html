@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block content %}
+    <div id="processes" class="box">
+        <div class="box-header">
+            <span>Processes</span>
+        </div>
+        <div class="box-content">
+            <ul class="nav nav-tabs" role="tablist">
+                <li {% if user == "all" %}class="active" {% endif %}>
+                    <a href="/processes/?host={{host}}&project=dzsj&user=all">
+                        All <span class="badge all" id="processes_count"></span>
+                    </a>
+                </li>
+                <li {% if user == "user" %} class="active" {% endif %}>
+                    <a href="/processes/?host={{host}}&project=dzsj&user=user">
+                        User processes <span class="badge" id="user_processes_count"></span>
+                    </a>
+                </li>
+            </ul>
+            <table class="table table-hover table-striped table-bordered">
+                <thead>
+                    <tr>
+                        <th>
+                            <a href="#">PID</a>
+                        </th>
+                        <th>
+                            <a href="#">Name</a>
+                        </th>
+                        <th>
+                            <a href="#">User</a>
+                        </th>
+                        <th>
+                            <a href="#">Status</a>
+                        </th>
+                        <th>
+                            <a href="#">Created</a>
+                        </th>
+                        <th title="Resident Set Size">
+                            <a href="#">RSS</a>
+                        </th>
+                        <th title="Virtual Memory Size">
+                            <a href="#">VMS</a>
+                        </th>
+                        <th>
+                            <a href="#">Memory %</a>
+                        </th>
+                        <th>
+                            <a href="#">CPU %</a>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody id="processes_tbody">
+
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+<script type="text/javascript">
+    $(function() {
+        if ("WebSocket" in window) {
+            ws = new WebSocket("ws://" + document.domain + ":8008/socket_channel/?host={{host}}&action=processes&user={{ user }}");
+            ws.onopen = function () {
+                ws.send(JSON.stringify([{"method":"get_process_list","args":{}}]));
+              };
+            ws.onmessage = function (msg) {
+                var message = JSON.parse(msg.data);
+                var connect_status = message.connect_status
+                var info = JSON.parse(message.output)
+                if (connect_status == "连接成功") {
+                    document.getElementById("connect_status").innerHTML = "<font color='green'>" + connect_status + "</font>"
+                } else {
+                    document.getElementById("connect_status").innerHTML = "<font color='red'>" + connect_status + "</font>"
+                }
+
+                get_process_list = info.get_process_list
+                processes_count = message.processes_count
+                user_processes_count = message.user_processes_count
+                document.getElementById("processes_count").innerText=processes_count;
+                document.getElementById("user_processes_count").innerText=user_processes_count;
+                var tr_all = ""
+                for (var i = 0;i<get_process_list.length;i++){
+                    var tr_head = "<tr>"
+                    $.each(get_process_list[i],function(k,v){
+                        cmdline = get_process_list[i]["cmdline"]
+                        pid = "<td>" + get_process_list[i]["pid"] + "</td>"
+                        name = "<td><a href='/process/?host={{ host}}&project={{project }}&section=overview&pid="+ get_process_list[i]["pid"] + "'>" + get_process_list[i]["name"] + "</a><br>" + cmdline + "</td>"
+                        user = "<td>" + get_process_list[i]["user"] + "</td>"
+                        status = "<td>" + get_process_list[i]["status"] + "</td>"
+                        created = "<td>" + getLocalTime(get_process_list[i]["created"]) + "</td>"
+                        mem_rss = "<td>" + Math.floor(get_process_list[i]["mem_rss"]/1024/1024*10)/10 + " MB</td>"
+                        mem_vms = "<td>" + Math.floor(get_process_list[i]["mem_vms"]/1024/1024*10)/10 + " MB</td>"
+                        mem_percent = "<td>" + Math.floor(get_process_list[i]["mem_percent"]*10)/10 + "</td>"
+                        cpu_percent = "<td>" +  Math.floor(get_process_list[i]["cpu_percent"]*10)/10 + "</td>"
+
+                    })
+                    var tr_td = pid + name+user+status+created+mem_rss+mem_vms+mem_percent+cpu_percent + "</tr>"
+                    var tr_body = tr_head+tr_td
+                    tr_all = tr_all + tr_body
+                document.getElementById("processes_tbody").innerHTML=tr_all;
+
+                }
+
+            }
+
+        };
+
+        $('#chat_form input[name=text]').focus();
+
+        $("#chat_form").on('submit', function(e){
+            e.preventDefault();
+
+            var input = $('#chat_form input[name=text]');
+            var message = $(input).val();
+            $(input).val('');
+
+            ws.send(JSON.stringify({'output': message}));
+        });
+
+
+        window.onbeforeunload = function() {
+            ws.onclose = function () {};
+            ws.close()
+        };
+    });
+
+    function getLocalTime(nS) {
+       return new Date(parseInt(nS) * 1000).toLocaleString().replace(/年|月/g, "-").replace(/日/g, " ");
+    }
+
+
+</script>
+
+{% endblock %}
